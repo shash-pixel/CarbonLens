@@ -5,9 +5,15 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import pandas as pd
+import plotly.express as px
 import streamlit as st
 from dotenv import load_dotenv
 
+from analytics.analytics_service import (
+    history_summary,
+    records_to_dataframe,
+)
 from estimation.methodology import GOOGLE_GEMINI_APPS_REFERENCE
 from frontend.components import render_reference_notice
 from frontend.styles import apply_theme
@@ -88,21 +94,21 @@ def render_result(record: TrackedInference) -> None:
     st.subheader("Gemini response")
     st.write(record.response_text)
 
-    first_column, second_column, third_column = st.columns(3)
+    latency_column, input_column, output_column = st.columns(3)
 
-    first_column.metric(
+    latency_column.metric(
         "Request latency",
         f"{record.latency_ms:.0f} ms",
     )
 
-    second_column.metric(
+    input_column.metric(
         "Input tokens",
         record.input_tokens
         if record.input_tokens is not None
         else "Not reported",
     )
 
-    third_column.metric(
+    output_column.metric(
         "Output tokens",
         record.output_tokens
         if record.output_tokens is not None
@@ -149,19 +155,8 @@ def render_result(record: TrackedInference) -> None:
         )
 
 
-def main() -> None:
-    """Render the CarbonLens analysis screen."""
-    st.set_page_config(
-        page_title="CarbonLens",
-        page_icon="◌",
-        layout="wide",
-    )
-
-    apply_theme()
-    initialize_session_state()
-
-    repository = get_repository()
-
+def render_analysis_page(repository: RequestRepository) -> None:
+    """Render the prompt-to-response workflow."""
     st.title("CarbonLens")
     st.caption(
         "Gemini inference tracking with transparent environmental reference context."
@@ -175,10 +170,7 @@ def main() -> None:
         model = st.selectbox(
             "Gemini model",
             options=["gemini-3.5-flash-lite"],
-            help=(
-                "CarbonLens currently supports Gemini only. "
-                "More providers can be added later."
-            ),
+            help="CarbonLens currently supports Gemini text generation.",
         )
 
         prompt = st.text_area(
@@ -231,6 +223,176 @@ def main() -> None:
 
     if st.session_state.last_record:
         render_result(st.session_state.last_record)
+
+
+def render_history_page(repository: RequestRepository) -> None:
+    """Render the persisted request dashboard and local history."""
+    st.title("Dashboard & history")
+
+    records = repository.list_recent(limit=200)
+    summary = history_summary(records)
+
+    requests_column, references_column, carbon_column, latency_column = (
+        st.columns(4)
+    )
+
+    requests_column.metric(
+        "Recorded requests",
+        summary.total_requests,
+    )
+
+    references_column.metric(
+        "Requests with references",
+        summary.reference_benchmark_count,
+    )
+
+    carbon_column.metric(
+        "Published-reference total",
+        (
+            f"{summary.published_reference_carbon_total_gco2e:.2f} g CO₂e"
+            if summary.published_reference_carbon_total_gco2e is not None
+            else "Unavailable"
+        ),
+    )
+
+    latency_column.metric(
+        "Average latency",
+        (
+            f"{summary.average_latency_ms:.0f} ms"
+            if summary.average_latency_ms is not None
+            else "Unavailable"
+        ),
+    )
+
+    st.caption(
+        "Published-reference totals are not measured emissions of your "
+        "individual Gemini API requests."
+    )
+
+    if not records:
+        st.info(
+            "No requests are stored yet. Generate a Gemini response to create "
+            "your first local record."
+        )
+        return
+
+    dataframe = records_to_dataframe(records)
+
+    reference_dataframe = dataframe[
+        (dataframe["status"] == "success")
+        & (
+            dataframe["estimation_classification"]
+            == "reference_benchmark"
+        )
+        & dataframe["reference_carbon_gco2e"].notna()
+    ].copy()
+
+    if not reference_dataframe.empty:
+        reference_dataframe["date"] = pd.to_datetime(
+            reference_dataframe["timestamp"]
+        ).dt.date
+
+        daily_reference_totals = (
+            reference_dataframe.groupby(
+                "date",
+                as_index=False,
+            )["reference_carbon_gco2e"]
+            .sum()
+        )
+
+        st.subheader("Published-reference emissions over time")
+
+        chart = px.bar(
+            daily_reference_totals,
+            x="date",
+            y="reference_carbon_gco2e",
+            labels={
+                "date": "Date",
+                "reference_carbon_gco2e": (
+                    "Published-reference total (g CO₂e)"
+                ),
+            },
+            template="plotly_dark",
+        )
+
+        chart.update_layout(
+            height=320,
+            margin={"left": 0, "right": 0, "top": 20, "bottom": 0},
+        )
+
+        st.plotly_chart(
+            chart,
+            use_container_width=True,
+        )
+
+    st.subheader("Recent request history")
+
+    display_columns = [
+        "timestamp",
+        "provider",
+        "model",
+        "status",
+        "latency_ms",
+        "input_tokens",
+        "output_tokens",
+        "reference_energy_wh",
+        "reference_carbon_gco2e",
+        "estimation_classification",
+        "error_category",
+    ]
+
+    st.dataframe(
+        dataframe[display_columns],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    st.divider()
+    st.subheader("Local data controls")
+
+    st.warning(
+        "Clearing history permanently removes locally stored CarbonLens "
+        "request metadata."
+    )
+
+    confirmed = st.checkbox(
+        "I understand that clearing local history cannot be undone.",
+    )
+
+    if st.button(
+        "Clear local history",
+        disabled=not confirmed,
+    ):
+        repository.clear_all()
+        st.session_state.last_record = None
+        st.success("Local history cleared.")
+        st.rerun()
+
+
+def main() -> None:
+    """Configure and render CarbonLens."""
+    st.set_page_config(
+        page_title="CarbonLens",
+        page_icon="◌",
+        layout="wide",
+    )
+
+    apply_theme()
+    initialize_session_state()
+
+    repository = get_repository()
+
+    page = st.sidebar.radio(
+        "Navigate",
+        options=["Analyze", "Dashboard & history"],
+    )
+
+    st.sidebar.caption("Inference reference estimator")
+
+    if page == "Analyze":
+        render_analysis_page(repository)
+    else:
+        render_history_page(repository)
 
 
 if __name__ == "__main__":
