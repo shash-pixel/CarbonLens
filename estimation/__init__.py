@@ -1,0 +1,1 @@
+"""Environmental reference and carbon-estimation helpers for CarbonLens."""
