@@ -1,31 +1,31 @@
 # CarbonLens
 
-CarbonLens is a Python and Streamlit project for running Gemini prompts, recording available inference metadata, and presenting transparent environmental context.
+CarbonLens is a Python and Streamlit application that sends prompts to Gemini, records available inference metadata, and presents transparent environmental reference context.
 
-## Current status
+## Features
 
-Module 1 establishes the project foundation and methodology.
+- Gemini text-generation integration through the official Google GenAI SDK
+- Application-side request latency measurement
+- Provider-reported input, output, and total token metadata when available
+- Google's published Gemini Apps environmental reference benchmark:
+  - 0.24 Wh published energy reference
+  - 0.03 g CO₂e published emissions reference
+- SQLite request-history persistence
+- Dashboard summary metrics and emissions-reference chart
+- Privacy-first storage: prompts and responses are not stored by default
+- Automated tests and Ruff linting
 
-It does not yet include:
+## Important methodology note
 
-- Gemini API integration
-- Streamlit interface
-- SQLite persistence
-- Request history
-- Dashboard charts
+The displayed 0.24 Wh and 0.03 g CO₂e values are Google's published median Gemini Apps text-prompt benchmark from its May 2025 analysis.
 
-## Environmental reference
+They are not direct measurements of an individual Gemini API request.
 
-CarbonLens uses Google's published median Gemini Apps text-prompt benchmark from its May 2025 analysis:
+CarbonLens does not multiply these values by tokens, words, or latency. The dashboard labels aggregated values as published-reference totals rather than measured emissions.
 
-- Published energy reference: **0.24 Wh**
-- Published emissions reference: **0.03 g CO₂e**
+See [the estimation methodology](docs/estimation_methodology.md).
 
-These are reference benchmarks, not direct measurements of an individual Gemini API request. CarbonLens will not multiply them by token count or latency.
-
-Read [the methodology](docs/estimation_methodology.md) for details.
-
-## Planned technology
+## Technology stack
 
 - Python 3.11+
 - Streamlit
@@ -35,3 +35,11 @@ Read [the methodology](docs/estimation_methodology.md) for details.
 - Plotly
 - pytest
 - Ruff
+
+## Setup
+
+Create and activate a virtual environment:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
