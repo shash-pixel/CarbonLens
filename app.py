@@ -395,12 +395,36 @@ def render_overview_page(repository: RequestRepository) -> None:
                     color_discrete_sequence=["#36C58A"],
                 )
 
-                emissions_chart.update_layout(height=310)
+                emissions_chart.update_traces(
+                    marker={
+                        "line": {"color": "#83DDB4", "width": 1},
+                    },
+                    opacity=0.95,
+                    hovertemplate=(
+                        "<b>%{x|%d %b %Y}</b><br>"
+                        "Published reference: %{y:.2f} g CO₂e<extra></extra>"
+                    ),
+                )
+                emissions_chart.update_layout(
+                    height=350,
+                    showlegend=False,
+                    bargap=0.28,
+                )
+                emissions_chart.update_xaxes(tickformat="%d %b")
+                emissions_chart.update_yaxes(
+                    rangemode="tozero",
+                    tickformat=".2f",
+                )
 
                 st.plotly_chart(
                     apply_chart_theme(emissions_chart),
                     width="stretch",
                     theme=None,
+                    config={
+                        "displayModeBar": True,
+                        "displaylogo": False,
+                        "responsive": True,
+                    },
                     alt=(
                         "Published-reference carbon dioxide equivalent totals "
                         "by day."
@@ -431,12 +455,37 @@ def render_overview_page(repository: RequestRepository) -> None:
                     color_discrete_sequence=["#83DDB4"],
                 )
 
-                activity_chart.update_layout(height=310)
+                activity_chart.update_traces(
+                    line={"color": "#83DDB4", "width": 3},
+                    marker={
+                        "color": "#36C58A",
+                        "size": 8,
+                        "line": {"color": "#111D29", "width": 2},
+                    },
+                    fill="tozeroy",
+                    fillcolor="rgba(54, 197, 138, 0.14)",
+                    hovertemplate=(
+                        "<b>%{x|%d %b %Y}</b><br>"
+                        "Recorded requests: %{y:d}<extra></extra>"
+                    ),
+                )
+                activity_chart.update_layout(height=350, showlegend=False)
+                activity_chart.update_xaxes(tickformat="%d %b")
+                activity_chart.update_yaxes(
+                    rangemode="tozero",
+                    dtick=1,
+                    tickformat="d",
+                )
 
                 st.plotly_chart(
                     apply_chart_theme(activity_chart),
                     width="stretch",
                     theme=None,
+                    config={
+                        "displayModeBar": True,
+                        "displaylogo": False,
+                        "responsive": True,
+                    },
                     alt="Recorded CarbonLens request activity by day.",
                 )
 

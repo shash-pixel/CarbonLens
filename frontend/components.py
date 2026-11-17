@@ -102,24 +102,27 @@ def apply_chart_theme(figure: Any) -> Any:
             "font": {"color": "#F1F5F9"},
         },
         legend={"font": {"color": "#9AAABC"}, "orientation": "h"},
-        margin={"l": 12, "r": 12, "t": 30, "b": 12},
+        margin={"l": 82, "r": 28, "t": 24, "b": 62},
         hovermode="x unified",
     )
 
     figure.update_xaxes(
-        gridcolor="#1D2C39",
+        showgrid=False,
         linecolor="#263747",
+        automargin=True,
         tickfont={"color": "#9AAABC"},
         title_font={"color": "#9AAABC"},
         zeroline=False,
     )
 
     figure.update_yaxes(
-        gridcolor="#1D2C39",
+        gridcolor="rgba(38, 55, 71, 0.55)",
+        griddash="dot",
         linecolor="#263747",
         tickfont={"color": "#9AAABC"},
         title_font={"color": "#9AAABC"},
         zeroline=False,
+        automargin=True,
     )
 
     return figure
