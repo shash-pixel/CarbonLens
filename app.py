@@ -104,15 +104,20 @@ def render_result(record: TrackedInference) -> None:
         "Response content is displayed for this session only.",
     )
 
-    st.write(record.response_text)
+    with st.container(border=True):
+        st.write(record.response_text)
 
-    latency_column, input_column, output_column = st.columns(3)
+    latency_column, input_column, output_column = st.columns(
+        3,
+        vertical_alignment="top",
+    )
 
     with latency_column:
         render_kpi_card(
             "Request latency",
             f"{record.latency_ms:.0f} ms",
             "Application-side measurement",
+            icon="schedule",
         )
 
     with input_column:
@@ -126,6 +131,7 @@ def render_result(record: TrackedInference) -> None:
             "Input tokens",
             input_value,
             "Provider-reported metadata",
+            icon="input",
         )
 
     with output_column:
@@ -139,6 +145,7 @@ def render_result(record: TrackedInference) -> None:
             "Output tokens",
             output_value,
             "Provider-reported metadata",
+            icon="output",
         )
 
     st.caption(
@@ -146,7 +153,7 @@ def render_result(record: TrackedInference) -> None:
         "of this individual API request."
     )
 
-    energy_column, emissions_column = st.columns(2)
+    energy_column, emissions_column = st.columns(2, vertical_alignment="top")
 
     with energy_column:
         energy_value = (
@@ -159,6 +166,7 @@ def render_result(record: TrackedInference) -> None:
             "Published energy reference",
             energy_value,
             "Google Gemini Apps benchmark",
+            icon="bolt",
         )
 
     with emissions_column:
@@ -172,6 +180,7 @@ def render_result(record: TrackedInference) -> None:
             "Published emissions reference",
             emissions_value,
             "Reference benchmark, not measurement",
+            icon="eco",
         )
 
     with st.expander("Methodology and request metadata"):
@@ -215,36 +224,37 @@ def get_filtered_dashboard_data(
     minimum_date = timestamps.min().date()
     maximum_date = timestamps.max().date()
 
-    filter_column, model_column, refresh_column = st.columns(
-        [2, 2, 1],
-        vertical_alignment="bottom",
-    )
-
-    with filter_column:
-        selected_dates = st.date_input(
-            "Time range",
-            value=(minimum_date, maximum_date),
-            min_value=minimum_date,
-            max_value=maximum_date,
-            key=f"{key_prefix}_date_range",
+    with st.container(border=True):
+        filter_column, model_column, refresh_column = st.columns(
+            [2, 2, 1],
+            vertical_alignment="bottom",
         )
 
-    with model_column:
-        models = sorted(dataframe["model"].dropna().unique().tolist())
+        with filter_column:
+            selected_dates = st.date_input(
+                "Time range",
+                value=(minimum_date, maximum_date),
+                min_value=minimum_date,
+                max_value=maximum_date,
+                key=f"{key_prefix}_date_range",
+            )
 
-        selected_model = st.selectbox(
-            "Model",
-            options=["All models", *models],
-            key=f"{key_prefix}_model",
-        )
+        with model_column:
+            models = sorted(dataframe["model"].dropna().unique().tolist())
 
-    with refresh_column:
-        if st.button(
-            "Refresh",
-            key=f"{key_prefix}_refresh",
-            width="stretch",
-        ):
-            st.rerun()
+            selected_model = st.selectbox(
+                "Model",
+                options=["All models", *models],
+                key=f"{key_prefix}_model",
+            )
+
+        with refresh_column:
+            if st.button(
+                "Refresh",
+                key=f"{key_prefix}_refresh",
+                width="stretch",
+            ):
+                st.rerun()
 
     if (
         isinstance(selected_dates, (tuple, list))
@@ -319,15 +329,14 @@ def render_overview_page(repository: RequestRepository) -> None:
         else "Unavailable"
     )
 
-    total_column, metadata_column, latency_column, carbon_column = (
-        st.columns(4)
-    )
+    total_column, metadata_column, latency_column, carbon_column = st.columns(4)
 
     with total_column:
         render_kpi_card(
             "Recorded requests",
             str(summary.total_requests),
             f"{summary.successful_requests} successful",
+            icon="database",
         )
 
     with metadata_column:
@@ -335,6 +344,7 @@ def render_overview_page(repository: RequestRepository) -> None:
             "Token metadata available",
             str(summary.token_metadata_count),
             "Successful requests with provider metadata",
+            icon="token",
         )
 
     with latency_column:
@@ -342,6 +352,7 @@ def render_overview_page(repository: RequestRepository) -> None:
             "Average request latency",
             average_latency,
             "Successful requests only",
+            icon="schedule",
         )
 
     with carbon_column:
@@ -349,123 +360,157 @@ def render_overview_page(repository: RequestRepository) -> None:
             "Published-reference CO₂e",
             total_carbon,
             "Benchmark total, not measured emissions",
+            icon="eco",
         )
 
     st.divider()
 
-    emissions_column, activity_column = st.columns(2)
+    emissions_column, activity_column = st.columns(2, gap="large")
 
     daily_emissions = daily_reference_emissions(dataframe)
     daily_activity = daily_request_activity(dataframe)
 
     with emissions_column:
-        render_section_heading(
-            "Environmental reference trend",
-            "Aggregates Google’s published benchmark values only.",
-        )
-
-        if daily_emissions.empty:
-            render_empty_state(
-                "No reference trend available",
-                "No eligible published-reference records exist in this filter range.",
+        with st.container(border=True):
+            render_section_heading(
+                "Environmental reference trend",
+                "Aggregates Google's published benchmark values only.",
             )
-        else:
-            emissions_chart = px.bar(
-                daily_emissions,
-                x="date",
-                y="reference_carbon_gco2e",
-                labels={
-                    "date": "Date",
-                    "reference_carbon_gco2e": (
-                        "Published-reference total (g CO₂e)"
+            if daily_emissions.empty:
+                render_empty_state(
+                    "No reference trend available",
+                    "No eligible published-reference records exist in this filter range.",
+                )
+            else:
+                emissions_chart = px.bar(
+                    daily_emissions,
+                    x="date",
+                    y="reference_carbon_gco2e",
+                    labels={
+                        "date": "Date",
+                        "reference_carbon_gco2e": (
+                            "Published-reference total (g CO₂e)"
+                        ),
+                    },
+                    color_discrete_sequence=["#36C58A"],
+                )
+
+                emissions_chart.update_layout(height=310)
+
+                st.plotly_chart(
+                    apply_chart_theme(emissions_chart),
+                    width="stretch",
+                    theme=None,
+                    alt=(
+                        "Published-reference carbon dioxide equivalent totals "
+                        "by day."
                     ),
-                },
-                color_discrete_sequence=["#38B779"],
-            )
-
-            emissions_chart.update_layout(height=300)
-
-            st.plotly_chart(
-                apply_chart_theme(emissions_chart),
-                width="stretch",
-                theme=None,
-                alt=(
-                    "Published-reference carbon dioxide equivalent totals "
-                    "by day."
-                ),
-            )
+                )
 
     with activity_column:
-        render_section_heading(
-            "Request activity",
-            "Actual CarbonLens records created over time.",
-        )
-
-        if daily_activity.empty:
-            render_empty_state(
-                "No activity data available",
-                "Generate a Gemini response to begin building activity history.",
+        with st.container(border=True):
+            render_section_heading(
+                "Request activity",
+                "Actual CarbonLens records created over time.",
             )
-        else:
-            activity_chart = px.line(
-                daily_activity,
-                x="date",
-                y="request_count",
-                markers=True,
-                labels={
-                    "date": "Date",
-                    "request_count": "Recorded requests",
-                },
-                color_discrete_sequence=["#82D9AE"],
-            )
+            if daily_activity.empty:
+                render_empty_state(
+                    "No activity data available",
+                    "Generate a Gemini response to begin building activity history.",
+                )
+            else:
+                activity_chart = px.line(
+                    daily_activity,
+                    x="date",
+                    y="request_count",
+                    markers=True,
+                    labels={
+                        "date": "Date",
+                        "request_count": "Recorded requests",
+                    },
+                    color_discrete_sequence=["#83DDB4"],
+                )
 
-            activity_chart.update_layout(height=300)
+                activity_chart.update_layout(height=310)
 
-            st.plotly_chart(
-                apply_chart_theme(activity_chart),
-                width="stretch",
-                theme=None,
-                alt="Recorded CarbonLens request activity by day.",
-            )
+                st.plotly_chart(
+                    apply_chart_theme(activity_chart),
+                    width="stretch",
+                    theme=None,
+                    alt="Recorded CarbonLens request activity by day.",
+                )
 
     st.divider()
 
     recent_column, methodology_column = st.columns([3, 2])
 
     with recent_column:
-        render_section_heading(
-            "Recent request activity",
-            "Latest persisted metadata. Prompts and responses are not stored.",
-        )
-
-        if dataframe.empty:
-            render_empty_state(
-                "No records in this range",
-                "Change the filters or generate another response.",
+        with st.container(border=True):
+            render_section_heading(
+                "Recent request activity",
+                "Latest persisted metadata. Prompts and responses are not stored.",
             )
-        else:
-            recent_columns = [
-                "timestamp",
-                "model",
-                "status",
-                "latency_ms",
-                "total_tokens",
-                "reference_carbon_gco2e",
-            ]
+            if dataframe.empty:
+                render_empty_state(
+                    "No records in this range",
+                    "Change the filters or generate another response.",
+                )
+            else:
+                recent_columns = [
+                    "timestamp",
+                    "model",
+                    "status",
+                    "latency_ms",
+                    "total_tokens",
+                    "reference_carbon_gco2e",
+                ]
+                recent_dataframe = dataframe[recent_columns].head(5).copy()
+                recent_dataframe["status"] = recent_dataframe["status"].str.title()
 
-            st.dataframe(
-                dataframe[recent_columns].head(5),
-                width="stretch",
-                hide_index=True,
-                alt="Five most recent CarbonLens request metadata records.",
-            )
+                st.dataframe(
+                    recent_dataframe,
+                    width="stretch",
+                    hide_index=True,
+                    column_config={
+                        "timestamp": st.column_config.DatetimeColumn(
+                            "Timestamp",
+                            format="D MMM YYYY, h:mm a",
+                            width="medium",
+                        ),
+                        "model": st.column_config.TextColumn(
+                            "Model",
+                            width="medium",
+                        ),
+                        "status": st.column_config.TextColumn(
+                            "Status",
+                            width="small",
+                        ),
+                        "latency_ms": st.column_config.NumberColumn(
+                            "Latency",
+                            format="%.0f ms",
+                            width="small",
+                        ),
+                        "total_tokens": st.column_config.NumberColumn(
+                            "Tokens",
+                            format="%,d",
+                            width="small",
+                        ),
+                        "reference_carbon_gco2e": st.column_config.NumberColumn(
+                            "Reference CO₂e",
+                            format="%.2f g",
+                            width="small",
+                        ),
+                    },
+                    alt="Five most recent CarbonLens request metadata records.",
+                )
 
     with methodology_column:
-        render_section_heading(
-            "Methodology insight",
-            "Why values are labelled as published references.",
-        )
-        render_reference_notice()
+        with st.container(border=True):
+            render_section_heading(
+                "Methodology insight",
+                "Why values are labelled as published references.",
+            )
+            render_reference_notice()
 
 
 def render_analyze_page(repository: RequestRepository) -> None:
@@ -475,69 +520,74 @@ def render_analyze_page(repository: RequestRepository) -> None:
         "Run a Gemini prompt and inspect its available inference metadata.",
     )
 
-    analysis_column, reference_column = st.columns([3, 2])
+    analysis_column, reference_column = st.columns([7, 4], gap="large")
 
     with analysis_column:
-        render_section_heading(
-            "Prompt workspace",
-            "CarbonLens sends a request only when you select Generate response.",
-        )
+        with st.container(border=True):
+            render_section_heading(
+                "Prompt workspace",
+                "CarbonLens sends a request only when you select Generate response.",
+            )
 
-        model = st.selectbox(
-            "Gemini model",
-            options=["gemini-3.5-flash-lite"],
-            help="CarbonLens currently supports Gemini text generation.",
-        )
+            model = st.selectbox(
+                "Gemini model",
+                options=["gemini-3.5-flash-lite"],
+                help="CarbonLens currently supports Gemini text generation.",
+            )
 
-        prompt = st.text_area(
-            "Prompt",
-            placeholder="Ask a question or describe a task...",
-            height=180,
-            max_chars=20_000,
-        )
+            prompt = st.text_area(
+                "Prompt",
+                placeholder="Ask a question or describe a task...",
+                height=220,
+                max_chars=20_000,
+            )
 
-        submitted = st.button(
-            "Generate response",
-            type="primary",
-            width="stretch",
-        )
+            submitted = st.button(
+                "Generate response",
+                type="primary",
+                icon=":material/arrow_forward:",
+                width="stretch",
+            )
 
-        if submitted:
-            if not prompt.strip():
-                st.warning("Enter a prompt before generating a response.")
+            if submitted:
+                if not prompt.strip():
+                    st.warning("Enter a prompt before generating a response.")
 
-            elif not os.getenv("GEMINI_API_KEY"):
-                st.error(
-                    "GEMINI_API_KEY is not configured. "
-                    "Add it to a local .env file and restart Streamlit."
-                )
+                elif not os.getenv("GEMINI_API_KEY"):
+                    st.error(
+                        "GEMINI_API_KEY is not configured. "
+                        "Add it to a local .env file and restart Streamlit."
+                    )
 
-            else:
-                submit_prompt(
-                    prompt=prompt.strip(),
-                    model=model,
-                    repository=repository,
-                )
+                else:
+                    submit_prompt(
+                        prompt=prompt.strip(),
+                        model=model,
+                        repository=repository,
+                    )
 
     with reference_column:
-        render_section_heading(
-            "Environmental context",
-            "Published reference values retained with eligible records.",
-        )
+        with st.container(border=True):
+            render_section_heading(
+                "Environmental context",
+                "Published reference values retained with eligible records.",
+            )
 
-        render_kpi_card(
-            "Published energy reference",
-            f"{GOOGLE_GEMINI_APPS_REFERENCE.energy_wh:.2f} Wh",
-            "Google Gemini Apps benchmark",
-        )
+            render_kpi_card(
+                "Published energy reference",
+                f"{GOOGLE_GEMINI_APPS_REFERENCE.energy_wh:.2f} Wh",
+                "Google Gemini Apps benchmark",
+                icon="bolt",
+            )
 
-        render_kpi_card(
-            "Published emissions reference",
-            f"{GOOGLE_GEMINI_APPS_REFERENCE.carbon_gco2e:.2f} g CO₂e",
-            "Reference benchmark, not measurement",
-        )
+            render_kpi_card(
+                "Published emissions reference",
+                f"{GOOGLE_GEMINI_APPS_REFERENCE.carbon_gco2e:.2f} g CO₂e",
+                "Reference benchmark, not measurement",
+                icon="eco",
+            )
 
-        render_reference_notice()
+            render_reference_notice()
 
     if st.session_state.last_error:
         st.error(st.session_state.last_error)
@@ -617,10 +667,57 @@ def render_history_page(repository: RequestRepository) -> None:
         "estimation_classification",
     ]
 
+    history_dataframe = dataframe[history_columns].copy()
+    history_dataframe["status"] = history_dataframe["status"].str.title()
+
     st.dataframe(
-        dataframe[history_columns],
+        history_dataframe,
         width="stretch",
         hide_index=True,
+        column_config={
+            "timestamp": st.column_config.DatetimeColumn(
+                "Timestamp",
+                format="D MMM YYYY, h:mm a",
+                width="medium",
+            ),
+            "provider": st.column_config.TextColumn("Provider", width="small"),
+            "model": st.column_config.TextColumn("Model", width="medium"),
+            "status": st.column_config.TextColumn("Status", width="small"),
+            "input_tokens": st.column_config.NumberColumn(
+                "Input tokens",
+                format="%,d",
+                width="small",
+            ),
+            "output_tokens": st.column_config.NumberColumn(
+                "Output tokens",
+                format="%,d",
+                width="small",
+            ),
+            "total_tokens": st.column_config.NumberColumn(
+                "Total tokens",
+                format="%,d",
+                width="small",
+            ),
+            "latency_ms": st.column_config.NumberColumn(
+                "Latency",
+                format="%.0f ms",
+                width="small",
+            ),
+            "reference_energy_wh": st.column_config.NumberColumn(
+                "Reference energy",
+                format="%.2f Wh",
+                width="small",
+            ),
+            "reference_carbon_gco2e": st.column_config.NumberColumn(
+                "Reference CO₂e",
+                format="%.2f g",
+                width="small",
+            ),
+            "estimation_classification": st.column_config.TextColumn(
+                "Classification",
+                width="medium",
+            ),
+        },
         alt="Filtered CarbonLens request metadata history.",
     )
 
@@ -647,28 +744,150 @@ def render_history_page(repository: RequestRepository) -> None:
 
     selected_record = records_by_id[selected_request_id]
 
-    st.json(
-        {
-            "request_id": selected_record.request_id,
-            "timestamp": selected_record.timestamp.isoformat(),
-            "provider": selected_record.provider,
-            "model": selected_record.model,
-            "status": selected_record.status,
-            "input_tokens": selected_record.input_tokens,
-            "output_tokens": selected_record.output_tokens,
-            "total_tokens": selected_record.total_tokens,
-            "latency_ms": selected_record.latency_ms,
-            "reference_energy_wh": selected_record.reference_energy_wh,
-            "reference_carbon_gco2e": (
-                selected_record.reference_carbon_gco2e
-            ),
-            "estimation_method": selected_record.estimation_method,
-            "estimation_classification": (
-                selected_record.estimation_classification
-            ),
-            "error_category": selected_record.error_category,
-        }
+    with st.container(border=True):
+        render_section_heading(
+            "Request overview",
+            "Identity and serving details for the selected local record.",
+        )
+        st.caption("REQUEST ID")
+        st.code(selected_record.request_id, language=None)
+
+        provider_column, model_column, status_column = st.columns(3)
+
+        with provider_column:
+            render_kpi_card(
+                "Provider",
+                selected_record.provider,
+                "Inference provider",
+                icon="cloud",
+            )
+
+        with model_column:
+            render_kpi_card(
+                "Model",
+                selected_record.model,
+                "Selected generation model",
+                icon="memory",
+            )
+
+        with status_column:
+            render_kpi_card(
+                "Status",
+                selected_record.status.title(),
+                "Persisted request outcome",
+                icon="check_circle",
+            )
+
+        st.caption(f"Recorded {selected_record.timestamp.isoformat()}")
+
+    st.divider()
+    render_section_heading(
+        "Usage analytics",
+        "Provider-reported token metadata and application-side latency.",
     )
+    input_column, output_column, total_column, latency_column = st.columns(4)
+
+    with input_column:
+        render_kpi_card(
+            "Input tokens",
+            str(selected_record.input_tokens)
+            if selected_record.input_tokens is not None
+            else "Not reported",
+            "Provider-reported metadata",
+            icon="input",
+        )
+
+    with output_column:
+        render_kpi_card(
+            "Output tokens",
+            str(selected_record.output_tokens)
+            if selected_record.output_tokens is not None
+            else "Not reported",
+            "Provider-reported metadata",
+            icon="output",
+        )
+
+    with total_column:
+        render_kpi_card(
+            "Total tokens",
+            str(selected_record.total_tokens)
+            if selected_record.total_tokens is not None
+            else "Not reported",
+            "Provider-reported metadata",
+            icon="token",
+        )
+
+    with latency_column:
+        render_kpi_card(
+            "Request latency",
+            f"{selected_record.latency_ms:.0f} ms"
+            if selected_record.latency_ms is not None
+            else "Not reported",
+            "Application-side measurement",
+            icon="schedule",
+        )
+
+    st.divider()
+    render_section_heading(
+        "Environmental information",
+        "Published context is retained only when it is available.",
+    )
+    energy_column, emissions_column = st.columns(2)
+
+    with energy_column:
+        render_kpi_card(
+            "Published energy reference",
+            f"{selected_record.reference_energy_wh:.2f} Wh"
+            if selected_record.reference_energy_wh is not None
+            else "Unavailable",
+            "Published benchmark, not request measurement",
+            icon="bolt",
+        )
+
+    with emissions_column:
+        render_kpi_card(
+            "Published emissions reference",
+            f"{selected_record.reference_carbon_gco2e:.2f} g CO₂e"
+            if selected_record.reference_carbon_gco2e is not None
+            else "Unavailable",
+            "Published benchmark, not request measurement",
+            icon="eco",
+        )
+
+    st.caption(
+        f"Method: {selected_record.estimation_method or 'Unavailable'}"
+    )
+    st.caption(
+        "Classification: "
+        f"{selected_record.estimation_classification or 'Unavailable'}"
+    )
+
+    with st.expander("Technical metadata"):
+        st.json(
+            {
+                "request_id": selected_record.request_id,
+                "timestamp": selected_record.timestamp.isoformat(),
+                "provider": selected_record.provider,
+                "model": selected_record.model,
+                "status": selected_record.status,
+                "input_tokens": selected_record.input_tokens,
+                "output_tokens": selected_record.output_tokens,
+                "total_tokens": selected_record.total_tokens,
+                "latency_ms": selected_record.latency_ms,
+                "provider_request_id": selected_record.provider_request_id,
+                "reference_energy_wh": selected_record.reference_energy_wh,
+                "reference_carbon_gco2e": (
+                    selected_record.reference_carbon_gco2e
+                ),
+                "estimation_method": selected_record.estimation_method,
+                "estimation_classification": (
+                    selected_record.estimation_classification
+                ),
+                "estimation_note": selected_record.estimation_note,
+                "error_category": selected_record.error_category,
+                "error_message": selected_record.error_message,
+            }
+        )
 
     render_local_data_controls(repository)
 

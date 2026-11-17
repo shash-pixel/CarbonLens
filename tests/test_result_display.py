@@ -47,8 +47,12 @@ def test_result_display_shows_reference_values_without_errors() -> None:
         element.value
         for element in app.subheader
     ]
+    displayed_metric_values = [
+        element.value
+        for element in app.metric
+    ]
 
     assert not app.exception
     assert "Generated response" in displayed_subheaders
-    assert "0.24 Wh" in displayed_subheaders
-    assert "0.03 g CO₂e" in displayed_subheaders
+    assert "0.24 Wh" in displayed_metric_values
+    assert "0.03 g CO₂e" in displayed_metric_values
